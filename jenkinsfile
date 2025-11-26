@@ -2,13 +2,13 @@ pipeline {
   agent any
 
   environment {
-    AWS_DEFAULT_REGION = 'ap-south-1'
-    ANSIBLE_VAULT_PASSWORD = credentials('ansible-vault-pass-id') // Jenkins credential id
-    AWS_CREDENTIALS = credentials('aws_jenkins_credentials') // stored AWS creds in Jenkins
+    AWS_DEFAULT_REGION = 'us-east-1'
+    ANSIBLE_VAULT_PASSWORD = credentials('ansible-vault-pass-id')
     VENV = "${HOME}/.venvs/ansible"
   }
 
   stages {
+
     stage('Checkout') {
       steps { checkout scm }
     }
@@ -25,19 +25,13 @@ pipeline {
       }
     }
 
-    stage('Build') {
-      steps {
-        // If you have a build step, run it here; for static site skip
-        echo 'Build stage (if required)'
-      }
-    }
-
     stage('Provision EC2') {
       steps {
-        withCredentials([usernamePassword(credentialsId: 'aws_jenkins_credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+        withAWS(credentials: 'aws_jenkins_credentials', region: 'ap-south-1') {
           sh '''
-          source ${VENV}/bin/activate
-          ansible-playbook ansible/playbooks/create_ec2.yml --vault-password-file <(echo "${ANSIBLE_VAULT_PASSWORD}")
+            source ${VENV}/bin/activate
+            ansible-playbook ansible/playbooks/create_ec2.yml \
+              --vault-password-file <(echo "${ANSIBLE_VAULT_PASSWORD}")
           '''
         }
       }
@@ -45,10 +39,12 @@ pipeline {
 
     stage('Configure Server') {
       steps {
-        withCredentials([usernamePassword(credentialsId: 'aws_jenkins_credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+        withAWS(credentials: 'aws_jenkins_credentials', region: 'ap-south-1') {
           sh '''
-          source ${VENV}/bin/activate
-          ansible-playbook -i ansible/inventories/aws_ec2.yml ansible/playbooks/configure_ec2.yml --vault-password-file <(echo "${ANSIBLE_VAULT_PASSWORD}")
+            source ${VENV}/bin/activate
+            ansible-playbook -i ansible/inventories/aws_ec2.yml \
+              ansible/playbooks/configure_ec2.yml \
+              --vault-password-file <(echo "${ANSIBLE_VAULT_PASSWORD}")
           '''
         }
       }
@@ -56,16 +52,18 @@ pipeline {
 
     stage('Deploy App') {
       steps {
-        withCredentials([usernamePassword(credentialsId: 'aws_jenkins_credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+        withAWS(credentials: 'aws_jenkins_credentials', region: 'ap-south-1') {
           sh '''
-          source ${VENV}/bin/activate
-          ansible-playbook -i ansible/inventories/aws_ec2.yml ansible/playbooks/deploy_app.yml --vault-password-file <(echo "${ANSIBLE_VAULT_PASSWORD}")
+            source ${VENV}/bin/activate
+            ansible-playbook -i ansible/inventories/aws_ec2.yml \
+              ansible/playbooks/deploy_app.yml \
+              --vault-password-file <(echo "${ANSIBLE_VAULT_PASSWORD}")
           '''
         }
       }
     }
 
-  } // stages
+  }
 
   post {
     success { echo 'Pipeline finished successfully' }
