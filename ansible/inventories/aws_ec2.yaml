@@ -1,17 +1,22 @@
 plugin: amazon.aws.aws_ec2
+
 regions:
   - us-east-1
 
+# Groups EC2 instances by tags
 keyed_groups:
   - key: tags.Name
     prefix: tag_Name_
-  - key: tags.Deploy       # ADD THIS
-    prefix: tag_Deploy_    # ADD THIS
+  - key: tags.Deploy
+    prefix: tag_Deploy_
 
+# Only include instances with Deploy=yes
 filters:
   tag:Deploy: "yes"
 
+# Use private IP as Ansible host
 compose:
   ansible_host: private-ip-address
 
+# Specify Python interpreter for remote hosts
 ansible_python_interpreter: "/var/lib/jenkins/.venvs/ansible/bin/python3"
