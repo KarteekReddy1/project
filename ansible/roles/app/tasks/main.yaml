@@ -1,0 +1,26 @@
+- name: Copy app files (Debian/Ubuntu)
+  copy:
+    src: "{{ item }}"
+    dest: /var/www/html/
+    owner: www-data
+    group: www-data
+    mode: '0644'
+  with_fileglob:
+    - "{{ playbook_dir }}/../../app/*"
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Copy app files (Amazon Linux/RedHat)
+  copy:
+    src: "{{ item }}"
+    dest: /usr/share/nginx/html/
+    owner: nginx
+    group: nginx
+    mode: '0644'
+  with_fileglob:
+    - "{{ playbook_dir }}/../../app/*"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Restart nginx
+  service:
+    name: nginx
+    state: restarted

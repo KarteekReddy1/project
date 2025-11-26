@@ -1,0 +1,10 @@
+plugin: amazon.aws.aws_ec2
+regions:
+  - us-east-1           # change to your region
+keyed_groups:
+  - key: tags.Name
+    prefix: tag_Name_
+filters:
+  tag:Deploy: "yes"         # only instances tagged Deploy=yes appear
+compose:
+  ansible_host: private-ip-address

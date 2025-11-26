@@ -1,0 +1,22 @@
+---
+- name: Destroy EC2 instances tagged Deploy=yes
+  hosts: localhost
+  gather_facts: no
+  collections:
+    - amazon.aws
+  tasks:
+  -name: Find instances with Deploy tag
+  ec2_instance_info:
+  region: us-east-1
+  filters:
+  "tag:Deploy": "yes"
+  register: found
+
+
+- name: Terminate found instances
+  ec2_instance:
+  instance_ids: "{{ item.instance_id }}"
+  state: absent
+  region: us-east-1
+  loop: "{{ found.instances }}"
+  when: found.instances | length > 0

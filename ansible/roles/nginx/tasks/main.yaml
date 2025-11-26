@@ -1,0 +1,19 @@
+- name: Install nginx (Debian/Ubuntu)
+  apt:
+    name: nginx
+    state: present
+    update_cache: yes
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Install nginx (Amazon Linux/RedHat)
+  yum:
+    name: nginx
+    state: present
+    update_cache: yes
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Start nginx
+  service:
+    name: nginx
+    state: started
+    enabled: yes

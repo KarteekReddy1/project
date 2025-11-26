@@ -1,0 +1,28 @@
+---
+- hosts: tag_Deploy_yes
+  become: true
+  gather_facts: yes
+
+  tasks:
+    - name: Copy static site (Debian/Ubuntu)
+      copy:
+        src: "{{ playbook_dir }}/../../app/"
+        dest: /var/www/html/
+        mode: '0644'
+        owner: www-data
+        group: www-data
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Copy static site (Amazon Linux/RedHat)
+      copy:
+        src: "{{ playbook_dir }}/../../app/"
+        dest: /usr/share/nginx/html/
+        mode: '0644'
+        owner: nginx
+        group: nginx
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    - name: Reload nginx
+      service:
+        name: nginx
+        state: reloaded
