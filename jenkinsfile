@@ -1,79 +1,82 @@
 pipeline {
-  agent any
+    agent any
 
-  environment {
-    AWS_DEFAULT_REGION = 'us-east-1'
-    ANSIBLE_VAULT_PASSWORD = credentials('ansible-vault-pass-id')
-    VENV = "${HOME}/.venvs/ansible"
-  }
-
-  stages {
-
-    stage('Checkout') {
-      steps { checkout scm }
+    environment {
+        VENV = "${HOME}/.venvs/ansible"
+        AWS_DEFAULT_REGION = 'us-east-1'  // Change region if needed
+        ANSIBLE_VAULT_PASSWORD = credentials('ansible-vault-pass-id') // Jenkins Vault password
     }
 
-    stage('Prepare env') {
-      steps {
-        sh '''
-          python3 -m venv ${VENV} || true
-          source ${VENV}/bin/activate
-          pip install --upgrade pip
-          pip install ansible boto3 botocore
-          ansible-galaxy collection install amazon.aws || true
-        '''
-      }
-    }
+    stages {
 
-    stage('Provision EC2') {
-      steps {
-        withAWS(credentials: 'aws_jenkins_credentials', region: 'us-east-1') {
-          sh '''
-            source ${VENV}/bin/activate
-            ansible-playbook ansible/playbooks/create_ec2.yaml \
-              --vault-password-file <(echo "${ANSIBLE_VAULT_PASSWORD}")
-          '''
+        stage('Checkout') {
+            steps { checkout scm }
         }
-      }
-    }
 
-    stage('Configure Server') {
-      steps {
-        withAWS(credentials: 'aws_jenkins_credentials', region: 'us-east-1') {
-          sh '''
-            source ${VENV}/bin/activate
-            ansible-playbook -i ansible/inventories/aws_ec2.yaml \
-              ansible/playbooks/configure_ec2.yaml \
-              --vault-password-file <(echo "${ANSIBLE_VAULT_PASSWORD}")
-          '''
+        stage('Prepare Environment') {
+            steps {
+                sh '''
+                    # Create virtualenv if it doesn't exist
+                    python3 -m venv ${VENV} || true
+                    source ${VENV}/bin/activate
+                    pip install --upgrade pip
+                    pip install ansible boto3 botocore amazon.aws
+                    ansible-galaxy collection install amazon.aws || true
+                '''
+            }
         }
-      }
-    }
 
-    stage('Deploy App') {
-      steps {
-        withAWS(credentials: 'aws_jenkins_credentials', region: 'us-east-1') {
-          sh '''
-            source ${VENV}/bin/activate
-            ansible-playbook -i ansible/inventories/aws_ec2.yaml \
-              ansible/playbooks/deploy_app.yaml\
-              --vault-password-file <(echo "${ANSIBLE_VAULT_PASSWORD}")
-          '''
+        stage('Create EC2') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'aws_jenkins_credentials',
+                    usernameVariable: 'AWS_ACCESS_KEY_ID',
+                    passwordVariable: 'AWS_SECRET_ACCESS_KEY'
+                )]) {
+                    sh '''
+                        source ${VENV}/bin/activate
+                        export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+                        ansible-playbook -i ansible/inventories/aws_ec2.yaml ansible/playbooks/create_ec2.yaml --vault-password-file <(echo "${ANSIBLE_VAULT_PASSWORD}")
+                    '''
+                }
+            }
         }
-      }
+
+        stage('Configure Server') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'aws_jenkins_credentials',
+                    usernameVariable: 'AWS_ACCESS_KEY_ID',
+                    passwordVariable: 'AWS_SECRET_ACCESS_KEY'
+                )]) {
+                    sh '''
+                        source ${VENV}/bin/activate
+                        export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+                        ansible-playbook -i ansible/inventories/aws_ec2.yaml ansible/playbooks/configure_ec2.yaml --vault-password-file <(echo "${ANSIBLE_VAULT_PASSWORD}")
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy Application') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'aws_jenkins_credentials',
+                    usernameVariable: 'AWS_ACCESS_KEY_ID',
+                    passwordVariable: 'AWS_SECRET_ACCESS_KEY'
+                )]) {
+                    sh '''
+                        source ${VENV}/bin/activate
+                        export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+                        ansible-playbook -i ansible/inventories/aws_ec2.yaml ansible/playbooks/deploy_app.yaml --vault-password-file <(echo "${ANSIBLE_VAULT_PASSWORD}")
+                    '''
+                }
+            }
+        }
     }
 
-  }
-
-  post {
-    success { echo 'Pipeline finished successfully' }
-    failure { echo 'Pipeline failed' }
-  }
+    post {
+        success { echo 'Pipeline completed successfully!' }
+        failure { echo 'Pipeline failed. Check logs for errors.' }
+    }
 }
-
-
-
-
-
-
-
