@@ -13,3 +13,5 @@ filters:
 
 compose:
   ansible_host: private-ip-address
+
+ansible_python_interpreter: "/var/lib/jenkins/.venvs/ansible/bin/python3"
