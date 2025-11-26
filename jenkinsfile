@@ -30,7 +30,7 @@ pipeline {
         withAWS(credentials: 'aws_jenkins_credentials', region: 'ap-south-1') {
           sh '''
             source ${VENV}/bin/activate
-            ansible-playbook project/ansible/playbooks/create_ec2.yml \
+            ansible-playbook ansible/playbooks/create_ec2.yml \
               --vault-password-file <(echo "${ANSIBLE_VAULT_PASSWORD}")
           '''
         }
@@ -42,7 +42,7 @@ pipeline {
         withAWS(credentials: 'aws_jenkins_credentials', region: 'ap-south-1') {
           sh '''
             source ${VENV}/bin/activate
-            ansible-playbook -i project/ansible/inventories/aws_ec2.yml \
+            ansible-playbook -i ansible/inventories/aws_ec2.yml \
               ansible/playbooks/configure_ec2.yml \
               --vault-password-file <(echo "${ANSIBLE_VAULT_PASSWORD}")
           '''
@@ -55,7 +55,7 @@ pipeline {
         withAWS(credentials: 'aws_jenkins_credentials', region: 'ap-south-1') {
           sh '''
             source ${VENV}/bin/activate
-            ansible-playbook -i project/ansible/inventories/aws_ec2.yml \
+            ansible-playbook -i ansible/inventories/aws_ec2.yml \
               ansible/playbooks/deploy_app.yml \
               --vault-password-file <(echo "${ANSIBLE_VAULT_PASSWORD}")
           '''
@@ -70,4 +70,5 @@ pipeline {
     failure { echo 'Pipeline failed' }
   }
 }
+
 
