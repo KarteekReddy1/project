@@ -27,7 +27,7 @@ pipeline {
 
     stage('Provision EC2') {
       steps {
-        withAWS(credentials: 'aws_jenkins_credentials', region: 'ap-south-1') {
+        withAWS(credentials: 'aws_jenkins_credentials', region: 'us-east-1') {
           sh '''
             source ${VENV}/bin/activate
             ansible-playbook ansible/playbooks/create_ec2.yaml \
@@ -39,7 +39,7 @@ pipeline {
 
     stage('Configure Server') {
       steps {
-        withAWS(credentials: 'aws_jenkins_credentials', region: 'ap-south-1') {
+        withAWS(credentials: 'aws_jenkins_credentials', region: 'us-east-1') {
           sh '''
             source ${VENV}/bin/activate
             ansible-playbook -i ansible/inventories/aws_ec2.yaml \
@@ -52,7 +52,7 @@ pipeline {
 
     stage('Deploy App') {
       steps {
-        withAWS(credentials: 'aws_jenkins_credentials', region: 'ap-south-1') {
+        withAWS(credentials: 'aws_jenkins_credentials', region: 'us-east-1') {
           sh '''
             source ${VENV}/bin/activate
             ansible-playbook -i ansible/inventories/aws_ec2.yaml \
@@ -70,6 +70,7 @@ pipeline {
     failure { echo 'Pipeline failed' }
   }
 }
+
 
 
 
