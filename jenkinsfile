@@ -4,6 +4,7 @@ pipeline {
     environment {
         VENV = "${env.HOME}/.venvs/ansible"
         AWS_DEFAULT_REGION = 'us-east-1'
+        VAULT_PASS_FILE = "/var/lib/jenkins/.venvs/vault.pass"
         ANSIBLE_VAULT_PASSWORD = credentials('ansible-vault-pass-id')
     }
 
@@ -85,4 +86,5 @@ pipeline {
         failure { echo 'Pipeline failed. Check logs for errors.' }
     }
 }
+
 
