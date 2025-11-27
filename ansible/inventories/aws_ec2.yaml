@@ -1,4 +1,4 @@
-plugin: aws_ec2
+plugin: amazon.aws.aws_ec2
 regions:
   - us-east-1
 
@@ -22,5 +22,6 @@ strict: False
 
 
 ansible_python_interpreter: "/var/lib/jenkins/.venvs/ansible/bin/python3"
+
 
 
