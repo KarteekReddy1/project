@@ -1,27 +1,17 @@
 plugin: amazon.aws.aws_ec2
 regions:
   - us-east-1
-
 filters:
   "tag:Deploy": "yes"
-
 keyed_groups:
   - key: tags.Name
     prefix: tag_Name_
   - key: tags.Deploy
     prefix: tag_Deploy_
-
 compose:
-  ansible_host: PrivateIpAddress
-
+  ansible_host: private_ip_address
 hostnames:
-  - PrivateDnsName
-  - PrivateIpAddress
-
+  - private_dns_name
+  - private_ip_address
 strict: False
-
-
 ansible_python_interpreter: "/var/lib/jenkins/.venvs/ansible/bin/python3"
-
-
-
