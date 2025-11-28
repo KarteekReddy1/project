@@ -19,17 +19,16 @@ pipeline {
                 sh '''#!/bin/bash
                 set -e
 
-                mkdir -p \"$(dirname \"$VENV\")\"
+                mkdir -p "$(dirname "$VENV")"
 
-                if [ ! -d \"$VENV\" ]; then
-                    python3 -m venv \"$VENV\"
+                if [ ! -d "$VENV" ]; then
+                    python3 -m venv "$VENV"
                 fi
 
-                source \"$VENV/bin/activate\"
+                source "$VENV/bin/activate"
 
                 pip install --upgrade pip setuptools wheel
                 pip install ansible boto3 botocore
-
                 ansible-galaxy collection install amazon.aws --force
                 '''
             }
@@ -40,10 +39,19 @@ pipeline {
                 withAWS(credentials: 'aws_jenkins_credentials', region: AWS_DEFAULT_REGION) {
                     sh '''#!/bin/bash
                     set -e
-                    source \"$VENV/bin/activate\"
+                    source "$VENV/bin/activate"
 
-                    echo \"${ANSIBLE_VAULT_PASSWORD}\" > vault-pass.txt
-                    ansible-playbook ansible/playbooks/create_ec2.yaml --vault-password-file vault-pass.txt
+                    echo "${ANSIBLE_VAULT_PASSWORD}" > vault-pass.txt
+
+                    # Create EC2 instances
+                    ansible-playbook -i ansible/inventories/aws_ec2.yaml ansible/playbooks/create_ec2.yaml --vault-password-file vault-pass.txt
+
+                    # Refresh inventory so new hosts are visible
+                    ansible-playbook -i ansible/inventories/aws_ec2.yaml -m meta -a "refresh_inventory"
+
+                    # Wait for new hosts to become SSH reachable
+                    ansible-playbook -i ansible/inventories/aws_ec2.yaml -m ansible.builtin.wait_for_connection -a "timeout=300"
+
                     rm -f vault-pass.txt
                     '''
                 }
@@ -55,10 +63,12 @@ pipeline {
                 withAWS(credentials: 'aws_jenkins_credentials', region: AWS_DEFAULT_REGION) {
                     sh '''#!/bin/bash
                     set -e
-                    source \"$VENV/bin/activate\"
+                    source "$VENV/bin/activate"
 
-                    echo \"${ANSIBLE_VAULT_PASSWORD}\" > vault-pass.txt
-                    ansible-playbook ansible/playbooks/configure_ec2.yaml --vault-password-file vault-pass.txt
+                    echo "${ANSIBLE_VAULT_PASSWORD}" > vault-pass.txt
+
+                    ansible-playbook -i ansible/inventories/aws_ec2.yaml ansible/playbooks/configure_ec2.yaml --vault-password-file vault-pass.txt
+
                     rm -f vault-pass.txt
                     '''
                 }
@@ -70,10 +80,12 @@ pipeline {
                 withAWS(credentials: 'aws_jenkins_credentials', region: AWS_DEFAULT_REGION) {
                     sh '''#!/bin/bash
                     set -e
-                    source \"$VENV/bin/activate\"
+                    source "$VENV/bin/activate"
 
-                    echo \"${ANSIBLE_VAULT_PASSWORD}\" > vault-pass.txt
-                    ansible-playbook ansible/playbooks/deploy_app.yaml --vault-password-file vault-pass.txt
+                    echo "${ANSIBLE_VAULT_PASSWORD}" > vault-pass.txt
+
+                    ansible-playbook -i ansible/inventories/aws_ec2.yaml ansible/playbooks/deploy_app.yaml --vault-password-file vault-pass.txt
+
                     rm -f vault-pass.txt
                     '''
                 }
@@ -86,6 +98,3 @@ pipeline {
         failure { echo 'Pipeline failed. Check logs for errors.' }
     }
 }
-
-
-
