@@ -10,4 +10,6 @@ keyed_groups:
     prefix: tag_Name
 
 compose:
-  instance_tags: tags   # SAFE replacement (not 'tags')
+  deploy: tags.Deploy
+  name: tags.Name
+  env: tags.Environment
