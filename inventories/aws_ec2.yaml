@@ -10,6 +10,6 @@ keyed_groups:
     prefix: tag_Name
 
 compose:
-  deploy: tags.Deploy
-  name: tags.Name
-  env: tags.Environment
+  instance_deploy: tags.Deploy
+  instance_name: tags.Name
+  instance_env: tags.Environment
