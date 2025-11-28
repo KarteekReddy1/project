@@ -1,4 +1,12 @@
+---
+# aws_ec2.yaml (Suggested Changes)
+
 plugin: amazon.aws.aws_ec2
+
+# Define what fields to use as the hostname for SSH connection.
+# Private IP is generally safer for internal VPC communication.
+hostnames:
+  - private-ip-address
 
 regions:
   - us-east-1
@@ -9,8 +17,18 @@ filters:
 keyed_groups:
   - key: tags.Name
     prefix: tag_Name
+  
+# OPTIONAL: Add a group based on the 'Environment' tag as well
+  - key: tags.Environment
+    prefix: env
 
 compose:
   instance_deploy: tags.Deploy
   instance_name: tags.Name
   instance_env: tags.Environment
+
+# CACHING: Recommended for production to speed up inventory calls.
+# Set a duration (e.g., 300 seconds = 5 minutes)
+cache: True
+cache_connection: /tmp/aws_ec2_inventory.json
+cache_timeout: 300
