@@ -1,6 +1,5 @@
 plugin: amazon.aws.aws_ec2
 
-# Preferred hostnames for SSH (private IP first)
 hostnames:
   - private-ip-address
   - public-ip-address
@@ -9,11 +8,9 @@ hostnames:
 regions:
   - us-east-1
 
-# Only include instances where Deploy=yes
 filters:
   tag:Deploy: "yes"
 
-# Dynamic groups based on tags
 keyed_groups:
   - key: tags.Name
     prefix: tag_Name_
@@ -21,19 +18,16 @@ keyed_groups:
     prefix: env_
   - key: tags.Deploy
     prefix: tag_Deploy_
+    # Force as string to avoid __ansible_unsafe objects
+    transform: 'str'
 
-
-# Custom host variables composed from instance tags
 compose:
-  instance_deploy: tags.Deploy
+  instance_deploy: tags.Deploy | string
   instance_name: tags.Name
   instance_env: tags.Environment
 
-# Recommended to avoid SSH host key failures for rotating EC2 instances
 strict: False
 
-# Enable caching to improve performance
 cache: True
 cache_connection: /tmp/aws_ec2_inventory.json
 cache_timeout: 300
-
