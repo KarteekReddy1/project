@@ -1,17 +1,10 @@
 plugin: amazon.aws.aws_ec2
 regions:
-  - us-east-1
-filters:
-  "tag:Deploy": "yes"
+  - us-east-1           # change to your region
 keyed_groups:
   - key: tags.Name
     prefix: tag_Name_
-  - key: tags.Deploy
-    prefix: tag_Deploy_
+filters:
+  tag:Deploy: "yes"         # only instances tagged Deploy=yes appear
 compose:
-  ansible_host: private_ip_address
-hostnames:
-  - private_dns_name
-  - private_ip_address
-strict: False
-ansible_python_interpreter: "/var/lib/jenkins/.venvs/ansible/bin/python3"
+  ansible_host: private-ip-address
