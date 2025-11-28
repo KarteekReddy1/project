@@ -1,0 +1,11 @@
+---
+- name: Refresh EC2 inventory
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Refresh inventory
+      meta: refresh_inventory
+
+    - name: Wait for all hosts to become reachable
+      wait_for_connection:
+        timeout: 600
