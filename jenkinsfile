@@ -43,7 +43,7 @@ pipeline {
                     source \"$VENV/bin/activate\"
 
                     echo \"${ANSIBLE_VAULT_PASSWORD}\" > vault-pass.txt
-                    ansible-playbook -i ansible/inventories/aws_ec2.yaml ansible/playbooks/create_ec2.yaml --vault-password-file vault-pass.txt
+                    ansible-playbook ansible/playbooks/create_ec2.yaml --vault-password-file vault-pass.txt
                     rm -f vault-pass.txt
                     '''
                 }
@@ -58,7 +58,7 @@ pipeline {
                     source \"$VENV/bin/activate\"
 
                     echo \"${ANSIBLE_VAULT_PASSWORD}\" > vault-pass.txt
-                    ansible-playbook -i ansible/inventories/aws_ec2.yaml ansible/playbooks/configure_ec2.yaml --vault-password-file vault-pass.txt
+                    ansible-playbook ansible/playbooks/configure_ec2.yaml --vault-password-file vault-pass.txt
                     rm -f vault-pass.txt
                     '''
                 }
@@ -73,7 +73,7 @@ pipeline {
                     source \"$VENV/bin/activate\"
 
                     echo \"${ANSIBLE_VAULT_PASSWORD}\" > vault-pass.txt
-                    ansible-playbook -i ansible/inventories/aws_ec2.yaml ansible/playbooks/deploy_app.yaml --vault-password-file vault-pass.txt
+                    ansible-playbook ansible/playbooks/deploy_app.yaml --vault-password-file vault-pass.txt
                     rm -f vault-pass.txt
                     '''
                 }
@@ -86,5 +86,6 @@ pipeline {
         failure { echo 'Pipeline failed. Check logs for errors.' }
     }
 }
+
 
 
