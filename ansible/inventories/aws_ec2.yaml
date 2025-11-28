@@ -3,8 +3,8 @@ plugin: amazon.aws.aws_ec2
 regions:
   - us-east-1
 
-filters:
-  "tag:Deploy": "yes"
+#filters:
+ # "tag:Deploy": "yes"
 
 hostnames:
   - private_ip_address
@@ -20,3 +20,4 @@ keyed_groups:
     prefix: tag_Name_
 
 strict: False
+
