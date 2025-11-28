@@ -46,7 +46,7 @@ pipeline {
                     # Create EC2 instances
                     ansible-playbook -i ansible/playbooks/create_ec2.yaml --vault-password-file vault-pass.txt
 
-                    ansible-playbook -i ansible/playbooks/refresh_inventory.yaml --vault-password-file vault-pass.txt
+                    ansible-playbook -i ansible/playbooks/refresh.yaml --vault-password-file vault-pass.txt
 
 
                     rm -f vault-pass.txt
@@ -95,4 +95,5 @@ pipeline {
         failure { echo 'Pipeline failed. Check logs for errors.' }
     }
 }
+
 
