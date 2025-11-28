@@ -1,0 +1,16 @@
+.bash_logout
+.bashrc
+.cache/
+.profile
+.ssh/
+.sudo_as_admin_successful
+.ansible/
+.aws/credentials
+ansible-aws-env/
+aws/
+awscliv2.zip
+vault1.pass
+vault_new.pass
+.aws/config
+.bash_history
+.viminfo
