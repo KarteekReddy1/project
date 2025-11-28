@@ -19,6 +19,9 @@ keyed_groups:
     prefix: tag_Name_
   - key: tags.Environment
     prefix: env_
+  - key: tags.Deploy
+    prefix: tag_Deploy_
+
 
 # Custom host variables composed from instance tags
 compose:
@@ -33,3 +36,4 @@ strict: False
 cache: True
 cache_connection: /tmp/aws_ec2_inventory.json
 cache_timeout: 300
+
