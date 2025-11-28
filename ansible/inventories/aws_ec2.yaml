@@ -6,17 +6,17 @@ regions:
 filters:
   "tag:Deploy": "yes"
 
-keyed_groups:
-  - key: tags.Name
-    prefix: tag_Name_
-  - key: tags.Deploy
-    prefix: tag_Deploy_
+hostnames:
+  - private_ip_address
+  - private_dns_name
 
 compose:
   ansible_host: private_ip_address
 
-hostnames:
-  - private_dns_name
-  - private_ip_address
+keyed_groups:
+  - key: tags.Deploy
+    prefix: tag_Deploy_
+  - key: tags.Name
+    prefix: tag_Name_
 
 strict: False
