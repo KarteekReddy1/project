@@ -9,7 +9,7 @@ regions:
   - us-east-1
 
 filters:
-  tag:Deploy: "yes"
+  "tag:Deploy": "yes"
 
 keyed_groups:
   - key: tags.Name
@@ -31,3 +31,4 @@ strict: False
 cache: True
 cache_connection: /tmp/aws_ec2_inventory.json
 cache_timeout: 300
+
