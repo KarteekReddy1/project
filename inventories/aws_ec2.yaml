@@ -26,6 +26,12 @@ keyed_groups:
     prefix: env_
   - key: instance_deploy
     prefix: tag_Deploy_
+    # This creates groups like 'tag_Deploy_yes', 'tag_Environment_dev'
+  - key: tags
+    prefix: tag
+  # This creates groups like 'aws_region_us_east_1'
+  - key: placement.region
+    prefix: aws_region
 
 strict: False
 
@@ -33,3 +39,4 @@ strict: False
 cache: True
 cache_connection: /tmp/aws_ec2_inventory.json
 cache_timeout: 300
+
