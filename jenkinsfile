@@ -1,110 +1,71 @@
-pipeline {
-    agent any
+---
+# ---------------------------------------------------------
+# Play 1: Create EC2 for Deployment
+# ---------------------------------------------------------
+- name: Create EC2 for Deployment
+  hosts: localhost
+  gather_facts: no
+  collections:
+    - amazon.aws
+  
+  vars:
+    region: us-east-1
+    ami: ami-0ecb62995f68bb549
+    instance_type: t3.micro
+    aws_key_name: argo
+    subnet_id: subnet-0f516ff1d079c2f50
+    security_group: sg-08d6c6519a0459da9
+    key_file: /home/ubuntu/argo.pem
 
-    environment {
-        VENV = "${env.HOME}/.venvs/ansible"
-        AWS_DEFAULT_REGION = 'us-east-1'
-        VAULT_PASS_FILE = "/var/lib/jenkins/.venvs/vault.pass"
-        ANSIBLE_VAULT_PASSWORD = credentials('ansible-vault-pass-id')
-    }
+  tasks:
+    - name: Launch EC2 instance
+      ec2_instance:
+        name: "webserver-{{ lookup('pipe','date +%s') }}"
+        key_name: "{{ aws_key_name }}"
+        instance_type: "{{ instance_type }}"
+        image_id: "{{ ami }}"
+        region: "{{ region }}"
+        vpc_subnet_id: "{{ subnet_id }}"
+        security_group: "{{ security_group }}"
+        wait: yes
+        metadata_options:
+          instance_metadata_tags: enabled
+        tags:
+          Name: "webserver-{{ lookup('pipe','date +%s') }}"
+          Deploy: "yes"
+          Environment: "dev"
+      register: ec2
 
-    stages {
+    - name: Wait for SSH to come up
+      wait_for:
+        host: "{{ item.public_ip_address }}"
+        port: 22
+        delay: 10
+        timeout: 300
+        state: started
+      loop: "{{ ec2.instances }}"
 
-        stage('Checkout') {
-            steps { checkout scm }
-        }
+    - name: Add new instance to host group immediately
+      add_host:
+        hostname: "{{ item.public_ip_address }}"
+        groupname: tag_Deploy_yes
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+        ansible_user: ubuntu
+        ansible_ssh_private_key_file: "{{ key_file }}"
+      loop: "{{ ec2.instances }}"
 
-        stage('Prepare Environment') {
-            steps {
-                sh '''#!/bin/bash
-                set -e
+# ---------------------------------------------------------
+# Play 2: Configure the new server
+# ---------------------------------------------------------
+- name: Configure Webservers
+  hosts: tag_Deploy_yes
+  remote_user: ubuntu        # ✅ REQUIRED FIX
+  gather_facts: yes
+  become: yes
 
-                mkdir -p "$(dirname "$VENV")"
-
-                if [ ! -d "$VENV" ]; then
-                    python3 -m venv "$VENV"
-                fi
-
-                source "$VENV/bin/activate"
-
-                pip install --upgrade pip setuptools wheel
-                pip install ansible boto3 botocore
-                ansible-galaxy collection install amazon.aws --force
-                '''
-            }
-        }
-
-        stage('Create EC2') {
-            steps {
-
-        withAWS(credentials: 'aws_jenkins_credentials', region: AWS_DEFAULT_REGION) {
-            // Use the key file credential here
-            withCredentials([file(credentialsId: 'argo-private-key-id', variable: 'KEY_FILE_PATH')]) {
-                sh '''#!/bin/bash
-                set -e
-                source "$VENV/bin/activate"
-                
-                # Copy the temporary key file to a known name/location and fix permissions
-                cp $KEY_FILE_PATH argo.pem
-                chmod 400 argo.pem
-
-                echo "${ANSIBLE_VAULT_PASSWORD}" > vault-pass.txt
-
-                # Pass the path to the playbook using an extra-var
-                ansible-playbook ansible/playbooks/create_ec2.yaml -e "ansible_private_key_file=argo.pem" --vault-password-file vault-pass.txt
-
-                # Your refresh and configure playbooks will now use 'argo.pem' in the workspace
-                ansible-playbook ansible/playbooks/refresh.yaml --vault-password-file vault-pass.txt
-
-                rm -f vault-pass.txt
-                rm -f argo.pem
-                    '''
-                }
-            }
-        }
-
-        stage('Configure Server') {
-            steps {
-                withAWS(credentials: 'aws_jenkins_credentials', region: AWS_DEFAULT_REGION) {
-                    sh '''#!/bin/bash
-                    set -e
-                    source "$VENV/bin/activate"
-
-                    echo "${ANSIBLE_VAULT_PASSWORD}" > vault-pass.txt
-
-                    ansible-playbook ansible/playbooks/configure_ec2.yaml --vault-password-file vault-pass.txt
-
-                    rm -f vault-pass.txt
-                    '''
-                }
-            }
-        }
-
-        stage('Deploy Application') {
-            steps {
-                withAWS(credentials: 'aws_jenkins_credentials', region: AWS_DEFAULT_REGION) {
-                    sh '''#!/bin/bash
-                    set -e
-                    source "$VENV/bin/activate"
-
-                    echo "${ANSIBLE_VAULT_PASSWORD}" > vault-pass.txt
-
-                    ansible-playbook ansible/playbooks/deploy_app.yaml --vault-password-file vault-pass.txt
-
-                    rm -f vault-pass.txt
-                    '''
-                }
-            }
-        }
-    }
-
-    post {
-        success { echo 'Pipeline completed successfully!' }
-        failure { echo 'Pipeline failed. Check logs for errors.' }
-    }
-}
-
-
-
-
-
+  tasks:
+    - name: Ensure Nginx is installed
+      apt:
+        name: nginx
+        state: present
+        update_cache: yes
