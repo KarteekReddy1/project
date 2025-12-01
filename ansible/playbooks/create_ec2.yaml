@@ -4,7 +4,7 @@
   gather_facts: no
   collections:
     - amazon.aws
-
+  
   vars:
     region: us-east-1
     ami: ami-0ecb62995f68bb549
@@ -23,13 +23,38 @@
         security_group: sg-08d6c6519a0459da9
         wait: yes
         metadata_options:
-          instance_metadata_tags: enabled      # <-- REQUIRED FOR DYNAMIC INVENTORY
+          instance_metadata_tags: enabled
         tags:
           Name: "webserver-{{ lookup('pipe','date +%s') }}"
-          Deploy: "yes"
+          Deploy: "yes"  # This tag is critical for the next play
           Environment: "dev"
       register: ec2
 
-    - name: Show EC2 info
-      debug:
-        var: ec2
+    - name: Wait for SSH to come up
+      wait_for:
+        host: "{{ item.public_ip_address }}"
+        port: 22
+        delay: 10
+        timeout: 300
+        state: started
+      loop: "{{ ec2.instances }}"
+
+    # CRITICAL: Force Ansible to re-read the inventory to find the new tag group
+    - name: Refresh Inventory
+      meta: refresh_inventory
+
+# ---------------------------------------------------------
+# Play 2: Configure the new server
+# ---------------------------------------------------------
+- name: Configure Webservers
+  hosts: tag_Deploy_yes  # This group will now exist after the refresh
+  remote_user: ubuntu
+  gather_facts: yes
+  become: yes
+  
+  tasks:
+    - name: Ensure Nginx is installed
+      apt:
+        name: nginx
+        state: present
+        update_cache: yes
