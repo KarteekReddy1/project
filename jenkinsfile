@@ -1,58 +1,117 @@
 pipeline {
-  agent any
+    agent any
 
-  environment {
-    VENV = "${HOME}/.venvs/ansible"
-    AWS_DEFAULT_REGION = 'us-east-1'
-  }
-
-  stages {
-    stage('Checkout') {
-      steps { checkout scm }
+    environment {
+        VENV = "${env.HOME}/.venvs/ansible"
+        AWS_DEFAULT_REGION = 'us-east-1'
+        VAULT_PASS_FILE = "/var/lib/jenkins/.venvs/vault.pass"
+        ANSIBLE_VAULT_PASSWORD = credentials('ansible-vault-pass-id')
     }
 
-    stage('Prepare Environment') {
-      steps {
-        sh '''
-          set -e
-          mkdir -p "$(dirname "$VENV")"
-          [ ! -d "$VENV" ] && python3 -m venv "$VENV"
-          source "$VENV/bin/activate"
-          pip install --upgrade pip setuptools wheel
-          pip install ansible boto3 botocore
-          ansible-galaxy collection install amazon.aws --force
-        '''
-      }
-    }
+    stages {
 
-    stage('Provision & Deploy') {
-      steps {
-        withAWS(region: AWS_DEFAULT_REGION) {
-          withCredentials([
-            file(credentialsId: 'argo-private-key-id', variable: 'KEY_FILE_PATH'),
-            string(credentialsId: 'ansible-vault-pass-id', variable: 'ANSIBLE_VAULT_PASSWORD')
-          ]) {
-            sh '''
-              set -e
-              source "$VENV/bin/activate"
-              ansible-playbook ansible/playbooks/create_ec2.yaml \
-                -e "ansible_private_key_file=$KEY_FILE_PATH" \
-                --vault-password-file <(echo "$ANSIBLE_VAULT_PASSWORD")
-
-              ansible-playbook ansible/playbooks/configure_ec2.yaml \
-                --vault-password-file <(echo "$ANSIBLE_VAULT_PASSWORD")
-
-              ansible-playbook ansible/playbooks/deploy_app.yaml \
-                --vault-password-file <(echo "$ANSIBLE_VAULT_PASSWORD")
-            '''
-          }
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
         }
-      }
-    }
-  }
 
-  post {
-    success { echo 'Pipeline completed successfully!' }
-    failure { echo 'Pipeline failed. Check logs for errors.' }
-  }
+        stage('Prepare Environment') {
+            steps {
+                sh(script: '''#!/bin/bash
+                set -e
+
+                mkdir -p "$(dirname "$VENV")"
+
+                if [ ! -d "$VENV" ]; then
+                    python3 -m venv "$VENV"
+                fi
+
+                source "$VENV/bin/activate"
+
+                pip install --upgrade pip setuptools wheel
+                pip install ansible boto3 botocore
+                ansible-galaxy collection install amazon.aws --force
+                ''', shell: '/bin/bash')
+            }
+        }
+
+        stage('Create EC2') {
+            steps {
+                script {
+                    withAWS(credentials: 'aws_jenkins_credentials', region: AWS_DEFAULT_REGION) {
+                        withCredentials([file(credentialsId: 'argo-private-key-id', variable: 'KEY_FILE_PATH')]) {
+                            sh(script: '''#!/bin/bash
+                            set -e
+                            source "$VENV/bin/activate"
+                            
+                            cp "$KEY_FILE_PATH" argo.pem
+                            chmod 400 argo.pem
+
+                            echo "${ANSIBLE_VAULT_PASSWORD}" > vault-pass.txt
+
+                            ansible-playbook ansible/playbooks/create_ec2.yaml \
+                                -e "ansible_private_key_file=argo.pem" \
+                                --vault-password-file vault-pass.txt
+
+                            ansible-playbook ansible/playbooks/refresh.yaml \
+                                --vault-password-file vault-pass.txt
+
+                            rm -f vault-pass.txt argo.pem
+                            ''', shell: '/bin/bash')
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Configure Server') {
+            steps {
+                script {
+                    withAWS(credentials: 'aws_jenkins_credentials', region: AWS_DEFAULT_REGION) {
+                        sh(script: '''#!/bin/bash
+                        set -e
+                        source "$VENV/bin/activate"
+
+                        echo "${ANSIBLE_VAULT_PASSWORD}" > vault-pass.txt
+
+                        ansible-playbook ansible/playbooks/configure_ec2.yaml \
+                            --vault-password-file vault-pass.txt
+
+                        rm -f vault-pass.txt
+                        ''', shell: '/bin/bash')
+                    }
+                }
+            }
+        }
+
+        stage('Deploy Application') {
+            steps {
+                script {
+                    withAWS(credentials: 'aws_jenkins_credentials', region: AWS_DEFAULT_REGION) {
+                        sh(script: '''#!/bin/bash
+                        set -e
+                        source "$VENV/bin/activate"
+
+                        echo "${ANSIBLE_VAULT_PASSWORD}" > vault-pass.txt
+
+                        ansible-playbook ansible/playbooks/deploy_app.yaml \
+                            --vault-password-file vault-pass.txt
+
+                        rm -f vault-pass.txt
+                        ''', shell: '/bin/bash')
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed. Check logs for errors.'
+        }
+    }
 }
