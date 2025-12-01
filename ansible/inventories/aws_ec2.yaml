@@ -11,7 +11,7 @@ regions:
 
 # Only include instances where Deploy=yes
 filters:
-  "tag:Deploy": yes
+  "tag:Deploy": "yes"
 
 # Dynamic groups based on tags
 keyed_groups:
@@ -36,5 +36,6 @@ strict: False
 cache: True
 cache_connection: /tmp/aws_ec2_inventory.json
 cache_timeout: 300
+
 
 
