@@ -37,8 +37,6 @@ pipeline {
         stage('Create EC2') {
             steps {
 
-stage('Create EC2') {
-    steps {
         withAWS(credentials: 'aws_jenkins_credentials', region: AWS_DEFAULT_REGION) {
             // Use the key file credential here
             withCredentials([file(credentialsId: 'argo-private-key-id', variable: 'KEY_FILE_PATH')]) {
@@ -105,6 +103,7 @@ stage('Create EC2') {
         failure { echo 'Pipeline failed. Check logs for errors.' }
     }
 }
+
 
 
 
