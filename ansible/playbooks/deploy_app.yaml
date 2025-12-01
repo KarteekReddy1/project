@@ -15,7 +15,7 @@
 
     - name: Copy static site (Amazon Linux/RedHat)
       copy:
-        src: "{{ playbook_dir }}/../../app/"
+        src: "{{ playbook_dir }}/../../application/"
         dest: /usr/share/nginx/html/
         mode: '0644'
         owner: nginx
@@ -25,4 +25,5 @@
     - name: Reload nginx
       service:
         name: nginx
+
         state: reloaded
