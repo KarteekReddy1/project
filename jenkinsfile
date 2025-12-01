@@ -1,71 +1,58 @@
----
-# ---------------------------------------------------------
-# Play 1: Create EC2 for Deployment
-# ---------------------------------------------------------
-- name: Create EC2 for Deployment
-  hosts: localhost
-  gather_facts: no
-  collections:
-    - amazon.aws
-  
-  vars:
-    region: us-east-1
-    ami: ami-0ecb62995f68bb549
-    instance_type: t3.micro
-    aws_key_name: argo
-    subnet_id: subnet-0f516ff1d079c2f50
-    security_group: sg-08d6c6519a0459da9
-    key_file: /home/ubuntu/argo.pem
+pipeline {
+  agent any
 
-  tasks:
-    - name: Launch EC2 instance
-      ec2_instance:
-        name: "webserver-{{ lookup('pipe','date +%s') }}"
-        key_name: "{{ aws_key_name }}"
-        instance_type: "{{ instance_type }}"
-        image_id: "{{ ami }}"
-        region: "{{ region }}"
-        vpc_subnet_id: "{{ subnet_id }}"
-        security_group: "{{ security_group }}"
-        wait: yes
-        metadata_options:
-          instance_metadata_tags: enabled
-        tags:
-          Name: "webserver-{{ lookup('pipe','date +%s') }}"
-          Deploy: "yes"
-          Environment: "dev"
-      register: ec2
+  environment {
+    VENV = "${HOME}/.venvs/ansible"
+    AWS_DEFAULT_REGION = 'us-east-1'
+  }
 
-    - name: Wait for SSH to come up
-      wait_for:
-        host: "{{ item.public_ip_address }}"
-        port: 22
-        delay: 10
-        timeout: 300
-        state: started
-      loop: "{{ ec2.instances }}"
+  stages {
+    stage('Checkout') {
+      steps { checkout scm }
+    }
 
-    - name: Add new instance to host group immediately
-      add_host:
-        hostname: "{{ item.public_ip_address }}"
-        groupname: tag_Deploy_yes
-        ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
-        ansible_user: ubuntu
-        ansible_ssh_private_key_file: "{{ key_file }}"
-      loop: "{{ ec2.instances }}"
+    stage('Prepare Environment') {
+      steps {
+        sh '''
+          set -e
+          mkdir -p "$(dirname "$VENV")"
+          [ ! -d "$VENV" ] && python3 -m venv "$VENV"
+          source "$VENV/bin/activate"
+          pip install --upgrade pip setuptools wheel
+          pip install ansible boto3 botocore
+          ansible-galaxy collection install amazon.aws --force
+        '''
+      }
+    }
 
-# ---------------------------------------------------------
-# Play 2: Configure the new server
-# ---------------------------------------------------------
-- name: Configure Webservers
-  hosts: tag_Deploy_yes
-  remote_user: ubuntu        # ✅ REQUIRED FIX
-  gather_facts: yes
-  become: yes
+    stage('Provision & Deploy') {
+      steps {
+        withAWS(region: AWS_DEFAULT_REGION) {
+          withCredentials([
+            file(credentialsId: 'argo-private-key-id', variable: 'KEY_FILE_PATH'),
+            string(credentialsId: 'ansible-vault-pass-id', variable: 'ANSIBLE_VAULT_PASSWORD')
+          ]) {
+            sh '''
+              set -e
+              source "$VENV/bin/activate"
+              ansible-playbook ansible/playbooks/create_ec2.yaml \
+                -e "ansible_private_key_file=$KEY_FILE_PATH" \
+                --vault-password-file <(echo "$ANSIBLE_VAULT_PASSWORD")
 
-  tasks:
-    - name: Ensure Nginx is installed
-      apt:
-        name: nginx
-        state: present
-        update_cache: yes
+              ansible-playbook ansible/playbooks/configure_ec2.yaml \
+                --vault-password-file <(echo "$ANSIBLE_VAULT_PASSWORD")
+
+              ansible-playbook ansible/playbooks/deploy_app.yaml \
+                --vault-password-file <(echo "$ANSIBLE_VAULT_PASSWORD")
+            '''
+          }
+        }
+      }
+    }
+  }
+
+  post {
+    success { echo 'Pipeline completed successfully!' }
+    failure { echo 'Pipeline failed. Check logs for errors.' }
+  }
+}
