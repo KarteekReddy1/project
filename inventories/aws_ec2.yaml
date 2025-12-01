@@ -8,8 +8,9 @@ hostnames:
 regions:
   - us-east-1
 
+# Remove restrictive filters; select all running instances
 filters:
-  "tag:Deploy": "yes"
+  "instance-state-name": "running"
 
 # Compose variables to convert unsafe objects to string
 compose:
