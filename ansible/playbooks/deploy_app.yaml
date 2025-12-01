@@ -6,7 +6,7 @@
   tasks:
     - name: Copy static site (Debian/Ubuntu)
       copy:
-        src: "{{ playbook_dir }}/../../app/"
+        src: "{{ playbook_dir }}/../../application/"
         dest: /var/www/html/
         mode: '0644'
         owner: www-data
@@ -27,3 +27,4 @@
         name: nginx
 
         state: reloaded
+
