@@ -11,24 +11,24 @@ regions:
 filters:
   "tag:Deploy": "yes"
 
-keyed_groups:
-  - key: tags.Name
-    prefix: tag_Name_
-  - key: tags.Environment
-    prefix: env_
-  - key: tags.Deploy
-    prefix: tag_Deploy_
-    # Force as string to avoid __ansible_unsafe objects
-    transform: 'str'
-
+# Compose variables to convert unsafe objects to string
 compose:
   instance_deploy: tags.Deploy | string
-  instance_name: tags.Name
-  instance_env: tags.Environment
+  instance_name: tags.Name | string
+  instance_env: tags.Environment | string
+
+# Keyed groups using composed variables
+keyed_groups:
+  - key: instance_name
+    prefix: tag_Name_
+  - key: instance_env
+    prefix: env_
+  - key: instance_deploy
+    prefix: tag_Deploy_
 
 strict: False
 
+# Cache configuration (optional)
 cache: True
 cache_connection: /tmp/aws_ec2_inventory.json
 cache_timeout: 300
-
