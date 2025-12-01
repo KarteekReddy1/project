@@ -22,6 +22,8 @@
         vpc_subnet_id: subnet-0f516ff1d079c2f50
         security_group: sg-08d6c6519a0459da9
         wait: yes
+        metadata_options:
+          instance_metadata_tags: enabled      # <-- REQUIRED FOR DYNAMIC INVENTORY
         tags:
           Name: "webserver-{{ lookup('pipe','date +%s') }}"
           Deploy: "yes"
